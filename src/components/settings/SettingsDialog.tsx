@@ -21,8 +21,10 @@ import { useChatStore } from '../../services/chat/store.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   isChineseBrowser,
+  setApiOrigin,
   setLocale,
   setLocation,
+  setModel,
   setThemePreference,
   setTtsVoice,
   useSettings,
@@ -109,6 +111,8 @@ const SettingsContent = ({
             </>
           ) : (
             <>
+              <ApiOriginSetting />
+              <ModelSetting />
               <ApiKeyField editor={apiKeyEditor} />
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
@@ -410,6 +414,90 @@ const errorStatus = (key: TranslationKey, error: unknown): Status => ({
     : { params: { message: error instanceof Error ? error.message : String(error) } }),
   error: true,
 })
+
+/** 接口地址：运行时覆盖构建期注入的 __API_ORIGIN__ */
+const ApiOriginSetting = () => {
+  const t = useTranslate()
+  const saved = useSettings((state) => state.apiOrigin)
+  const [value, setValue] = useState(saved)
+  const save = () => setApiOrigin(value)
+  return (
+    <SettingCell
+      label={t('apiOriginLabel')}
+      description={t('apiOriginHint')}
+      status={null}
+      action={
+        <div className={clsx(styles.apiKeyInput, styles.configInput)}>
+          <input
+            value={value}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="https://api.deepseek.com"
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                save()
+              }
+            }}
+          />
+          <span className={styles.divider} />
+          <button
+            type="button"
+            className={styles.confirm}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={save}
+          >
+            {t('confirm')}
+          </button>
+        </div>
+      }
+    />
+  )
+}
+
+/** 默认模型：自由输入，同时提示官方型号 */
+const ModelSetting = () => {
+  const t = useTranslate()
+  const saved = useSettings((state) => state.model)
+  const [value, setValue] = useState(saved)
+  const save = () => setModel(value)
+  return (
+    <SettingCell
+      label={t('modelLabel')}
+      description={t('modelHint')}
+      status={null}
+      action={
+        <div className={clsx(styles.apiKeyInput, styles.configInput)}>
+          <input
+            value={value}
+            spellCheck={false}
+            autoComplete="off"
+            list="chat-demo-model-options"
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                save()
+              }
+            }}
+          />
+          <datalist id="chat-demo-model-options">
+            <option value="deepseek-flash" />
+            <option value="deepseek-v4-pro" />
+          </datalist>
+          <span className={styles.divider} />
+          <button
+            type="button"
+            className={styles.confirm}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={save}
+          >
+            {t('confirm')}
+          </button>
+        </div>
+      }
+    />
+  )
+}
 
 const SettingCell = ({
   label,

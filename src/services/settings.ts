@@ -14,6 +14,10 @@ type Settings = {
   themePreference: ThemePreference
   location: UserLocation | null
   ttsVoice: TtsVoice
+  /** 接口地址（不含 /anthropic/v1），留空回落到构建期默认值 */
+  apiOrigin: string
+  /** 默认模型名 */
+  model: string
   thinking: boolean
   search: boolean
   siderCollapsed: boolean
@@ -21,6 +25,8 @@ type Settings = {
 
 const KEYS = {
   apiKey: 'chat-demo:api-key',
+  apiOrigin: 'chat-demo:api-origin',
+  model: 'chat-demo:model',
   locale: 'chat-demo:locale',
   location: 'chat-demo:location',
   themePreference: 'chat-demo:theme-preference',
@@ -87,8 +93,23 @@ const initialThemePreference = (): ThemePreference => {
 /** 未保存过时使用服务端默认音色 stella（海星） */
 const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide' : 'stella')
 
+/** 构建期默认接口地址，运行时可在设置里覆盖 */
+export const DEFAULT_API_ORIGIN = __API_ORIGIN__
+/** 默认模型 */
+export const DEFAULT_MODEL = 'deepseek-flash'
+
+/** 去掉末尾斜杠；留空回落到构建期默认值 */
+export const normalizeApiOrigin = (value: string): string =>
+  value.trim().replace(/\/+$/, '') || DEFAULT_API_ORIGIN
+
+const initialApiOrigin = (): string => normalizeApiOrigin(read(KEYS.apiOrigin) ?? '')
+
+const initialModel = (): string => (read(KEYS.model) ?? '').trim() || DEFAULT_MODEL
+
 export const useSettings = create<Settings>(() => ({
   apiKey: read(KEYS.apiKey),
+  apiOrigin: initialApiOrigin(),
+  model: initialModel(),
   locale: initialLocale(),
   location: initialLocation(),
   themePreference: initialThemePreference(),
@@ -122,6 +143,18 @@ export const setTtsVoice = (ttsVoice: TtsVoice) => {
 export const setApiKey = (apiKey: string | null) => {
   write(KEYS.apiKey, apiKey)
   useSettings.setState({ apiKey })
+}
+
+export const setApiOrigin = (apiOrigin: string) => {
+  const next = normalizeApiOrigin(apiOrigin)
+  write(KEYS.apiOrigin, next)
+  useSettings.setState({ apiOrigin: next })
+}
+
+export const setModel = (model: string) => {
+  const next = model.trim() || DEFAULT_MODEL
+  write(KEYS.model, next)
+  useSettings.setState({ model: next })
 }
 
 export const setThinking = (thinking: boolean) => {

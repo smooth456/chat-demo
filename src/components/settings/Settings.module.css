@@ -272,6 +272,10 @@
 }
 
 .apiKeySaved,
+.configInput {
+  width: 300px;
+}
+
 .apiKeyInput {
   display: flex;
   align-items: center;
@@ -490,6 +494,9 @@
 }
 
 @media not all and (min-width: 768px) {
+  .configInput {
+    width: 100%;
+  }
   .deleteActions > button {
     min-height: 44px;
     height: auto;

@@ -40,6 +40,13 @@ export const useApiKeyForm = (onSaved?: () => void) => {
       setValue('')
       onSaved?.()
     } catch (e) {
+      // 自定义端点通常不实现 GET /models，404 时仍允许保存
+      if (e instanceof ApiError && e.status === 404) {
+        setApiKey(apiKey)
+        setValue('')
+        onSaved?.()
+        return
+      }
       setFailure({ cause: e })
     } finally {
       setVerifying(false)

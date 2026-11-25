@@ -717,8 +717,8 @@ export const continueReply = (sessionId: string, messageId: string) => {
   const { thinking, search } = useSettings.getState()
   const reply: AssistantMessage = {
     ...previous,
-    // 未记录请求配置的回复，续写时使用默认模型和当前开关。
-    model: defaultModel(),
+    // 未记录请求配置的回复，续写时使用默认模型和当前开关；已记录的保持原模型。
+    model: previous.model ?? defaultModel(),
     thinking: previous.thinking ?? thinking,
     search: previous.search ?? search,
     status: 'pending',
@@ -1024,7 +1024,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         const events = streamMessage(
           useSettings.getState().apiKey ?? '',
           {
-            model: defaultModel(),
+            // 沿用这条回复记录的模型，保证重试/续写与保存下来的配置一致
+            model: initial.model ?? defaultModel(),
             system: SYSTEM_PROMPT,
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },

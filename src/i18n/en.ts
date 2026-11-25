@@ -111,7 +111,12 @@ export const en = {
   apiKeyInvalid: 'Invalid API Key. Please check it and try again.',
   apiKeyVerificationFailed: 'Verification failed: {message}',
   apiOriginLabel: 'API endpoint',
-  apiOriginHint: 'Anthropic-compatible base URL, without /anthropic/v1',
+  apiOriginHint:
+    'Anthropic-compatible base URL, without /anthropic/v1; leave empty to use the default',
+  apiOriginInvalid: 'Invalid endpoint. Enter an address starting with https://',
+  apiKeyVerifiedToast: 'Endpoint saved; the API Key is verified',
+  apiKeyUnverifiedToast:
+    'Saved, but this endpoint has no GET /models, so the API Key is unverified',
   modelLabel: 'Model',
   modelHint: 'Defaults to deepseek-flash; any model the service supports',
   historyImport: 'Import chat history',

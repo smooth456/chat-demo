@@ -98,9 +98,36 @@ export const DEFAULT_API_ORIGIN = __API_ORIGIN__
 /** 默认模型 */
 export const DEFAULT_MODEL = 'deepseek-flash'
 
-/** 去掉末尾斜杠；留空回落到构建期默认值 */
-export const normalizeApiOrigin = (value: string): string =>
-  value.trim().replace(/\/+$/, '') || DEFAULT_API_ORIGIN
+/**
+ * 规范化用户填写的接口地址：去掉末尾斜杠、去掉误带的 /anthropic/v1，
+ * 没写协议时按 https 补齐；留空回落到构建期默认值。
+ */
+export const normalizeApiOrigin = (value: string): string => {
+  const base = value
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/anthropic\/v1$/i, '')
+    .replace(/\/+$/, '')
+  if (!base) {
+    return DEFAULT_API_ORIGIN
+  }
+  return /^[a-z][a-z\d+.-]*:\/\//i.test(base) ? base : `https://${base}`
+}
+
+/** 规范化后是否为可用的 HTTP(S) 地址，供设置页输入校验；留空算合法（回落到默认值） */
+export const isValidApiOrigin = (value: string): boolean => {
+  const normalized = normalizeApiOrigin(value)
+  // 只填了协议（如 "https://"）时 URL 也能解析出主机，单独挡掉
+  if (normalized.endsWith(':')) {
+    return false
+  }
+  try {
+    const { protocol } = new URL(normalized)
+    return protocol === 'https:' || protocol === 'http:'
+  } catch {
+    return false
+  }
+}
 
 const initialApiOrigin = (): string => normalizeApiOrigin(read(KEYS.apiOrigin) ?? '')
 

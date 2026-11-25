@@ -21,6 +21,7 @@ import { useChatStore } from '../../services/chat/store.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
 import {
   isChineseBrowser,
+  isValidApiOrigin,
   setApiOrigin,
   setLocale,
   setLocation,
@@ -36,11 +37,13 @@ import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
 import { ApiKeyConfirm, ApiKeyField, useApiKeyEditor } from './ApiKeyField.js'
+import { checkSavedApiKey } from './useApiKeyForm.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
 import styles from './Settings.module.css'
 
 /**
- * 设置弹窗：分「通用设置」（主题、语言、朗读音色、位置）与「数据管理」（API Key、导入、导出、删除）。
+ * 设置弹窗：分「通用设置」（主题、语言、朗读音色、位置）与「数据管理」
+ * （接口地址、模型、API Key、导入、导出、删除）。
  * 桌面端为居中弹窗、左侧导航；移动端为底部弹层、导航横排在内容上方
  */
 export const SettingsDialog = () => {
@@ -418,14 +421,35 @@ const errorStatus = (key: TranslationKey, error: unknown): Status => ({
 /** 接口地址：运行时覆盖构建期注入的 __API_ORIGIN__ */
 const ApiOriginSetting = () => {
   const t = useTranslate()
-  const saved = useSettings((state) => state.apiOrigin)
-  const [value, setValue] = useState(saved)
-  const save = () => setApiOrigin(value)
+  const [value, setValue] = useState(() => useSettings.getState().apiOrigin)
+  const [invalid, setInvalid] = useState(false)
+  const save = async () => {
+    if (!isValidApiOrigin(value)) {
+      setInvalid(true)
+      return
+    }
+    setInvalid(false)
+    const previous = useSettings.getState().apiOrigin
+    setApiOrigin(value)
+    const next = useSettings.getState().apiOrigin
+    // 回显规范化后的地址：补全协议、去掉多余的斜杠
+    setValue(next)
+    if (next === previous || !useSettings.getState().apiKey) {
+      return
+    }
+    // 换端点后原有 Key 可能失效，顺手复核一次并提示结果
+    const result = await checkSavedApiKey()
+    if (result === 'invalid') {
+      showToast({ key: 'apiKeyInvalid', type: 'error' })
+      return
+    }
+    showToast({ key: result === 'verified' ? 'apiKeyVerifiedToast' : 'apiKeyUnverifiedToast' })
+  }
   return (
     <SettingCell
       label={t('apiOriginLabel')}
       description={t('apiOriginHint')}
-      status={null}
+      status={invalid ? { key: 'apiOriginInvalid', error: true } : null}
       action={
         <div className={clsx(styles.apiKeyInput, styles.configInput)}>
           <input
@@ -433,10 +457,13 @@ const ApiOriginSetting = () => {
             spellCheck={false}
             autoComplete="off"
             placeholder="https://api.deepseek.com"
-            onChange={(event) => setValue(event.target.value)}
+            onChange={(event) => {
+              setValue(event.target.value)
+              setInvalid(false)
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                save()
+                void save()
               }
             }}
           />
@@ -445,7 +472,7 @@ const ApiOriginSetting = () => {
             type="button"
             className={styles.confirm}
             onMouseDown={(event) => event.preventDefault()}
-            onClick={save}
+            onClick={() => void save()}
           >
             {t('confirm')}
           </button>
@@ -458,9 +485,12 @@ const ApiOriginSetting = () => {
 /** 默认模型：自由输入，同时提示官方型号 */
 const ModelSetting = () => {
   const t = useTranslate()
-  const saved = useSettings((state) => state.model)
-  const [value, setValue] = useState(saved)
-  const save = () => setModel(value)
+  const [value, setValue] = useState(() => useSettings.getState().model)
+  const save = () => {
+    setModel(value)
+    // 回显实际生效的模型：留空或只有空格时回落到默认模型
+    setValue(useSettings.getState().model)
+  }
   return (
     <SettingCell
       label={t('modelLabel')}

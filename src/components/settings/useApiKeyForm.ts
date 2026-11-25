@@ -1,8 +1,33 @@
 import { useState } from 'react'
 import { ApiError, verifyApiKey } from '../../services/api/client.js'
 import { classifyApiError } from '../../services/api/errors.js'
-import { setApiKey } from '../../services/settings.js'
+import { setApiKey, useSettings } from '../../services/settings.js'
+import { showToast } from '../base/toastState.js'
 import { useTranslate } from '../../i18n/index.js'
+
+/** 端点换过之后重新校验已保存的 Key 的结果 */
+export type SavedApiKeyCheck = 'verified' | 'invalid' | 'unverified'
+
+/**
+ * 校验已保存的 Key：自定义端点通常不实现 GET /models，404 和网络错误只算「未校验」，
+ * 只有服务端明确表示鉴权失败才算 Key 无效。
+ */
+export const checkSavedApiKey = async (): Promise<SavedApiKeyCheck> => {
+  const apiKey = useSettings.getState().apiKey
+  if (!apiKey) {
+    return 'unverified'
+  }
+  try {
+    await verifyApiKey(apiKey)
+    return 'verified'
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status === 404) {
+      return 'unverified'
+    }
+    const condition = classifyApiError(error)
+    return condition === 'unauthorized' ? 'invalid' : 'unverified'
+  }
+}
 
 /** 输入 API Key 后先用 GET /models 校验，通过才保存 */
 export const useApiKeyForm = (onSaved?: () => void) => {
@@ -40,11 +65,12 @@ export const useApiKeyForm = (onSaved?: () => void) => {
       setValue('')
       onSaved?.()
     } catch (e) {
-      // 自定义端点通常不实现 GET /models，404 时仍允许保存
+      // 自定义端点通常不实现 GET /models，404 时仍允许保存，但提示未校验
       if (e instanceof ApiError && e.status === 404) {
         setApiKey(apiKey)
         setValue('')
         onSaved?.()
+        showToast({ key: 'apiKeyUnverifiedToast' })
         return
       }
       setFailure({ cause: e })
